@@ -1,6 +1,6 @@
 =========
 color-ssh
-========
+=========
 
 Runs remote commands, colorfully.
 
