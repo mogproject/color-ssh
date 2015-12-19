@@ -28,6 +28,8 @@ Runs remote commands, colorfully.
 Features
 --------
 
+* todo
+
 ------------
 Dependencies
 ------------
@@ -54,3 +56,24 @@ Installation
 | Help                    |``color-ssh -h``                       |
 +-------------------------+---------------------------------------+
 
+----------
+Quickstart
+----------
+
+Two commands will be installed.
+
+* color-cat
+
+::
+
+    echo abc | color-cat -l label
+    echo abc | color-cat -l label -c magenta
+    color-cat -l label README.rst
+
+* color-ssh
+
+::
+
+    color-ssh server-1 ls -l
+    color-ssh server-1 'cd /tmp && pwd'
+    color-ssh --ssh 'ssh -v' username@server-1 id
