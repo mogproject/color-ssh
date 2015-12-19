@@ -5,6 +5,7 @@ import os
 import sys
 import six
 from mog_commons.unittest import TestCase
+from color_ssh import color_cat
 from color_ssh.color_cat import Setting
 
 
@@ -99,3 +100,23 @@ class TestSetting(TestCase):
         self.assertEqual(out.getvalue().split(b'\n', 3)[:3],
                          [b'Invalid color name: \xff\xfe', b'', b'Usage: setup.py [options...] [file ...]'])
         self.assertEqual(err.getvalue(), b'')
+
+    def test_main(self):
+        with self.withBytesOutput() as (out, err):
+            args = ['color-cat',
+                    os.path.join('tests', 'resources', 'test_01.txt'),
+                    os.path.join('tests', 'resources', 'test_02.txt')]
+            ret = color_cat.main(args, stdout=out, stderr=err)
+            self.assertEqual(ret, 0)
+        self.assertEqual(out.getvalue(),
+                         b'\x1b[31mfoo\n\x1b[0m\x1b[31mbar\n\x1b[0m\x1b[31mbaz\n\x1b[0m'
+                         b'\x1b[31m123\n\x1b[0m\x1b[31m456\n\x1b[0m\x1b[31m789\n\x1b[0m')
+        self.assertEqual(err.getvalue(), b'')
+
+    def test_main_error(self):
+        with self.withBytesOutput() as (out, err):
+            args = ['color-cat', os.path.join('tests', 'resources', 'test_01_not_exist.txt')]
+            ret = color_cat.main(args, stdout=out, stderr=err)
+            self.assertEqual(ret, 1)
+        self.assertEqual(out.getvalue(), b'')
+        self.assertTrue(b'No such file or directory' in err.getvalue())
