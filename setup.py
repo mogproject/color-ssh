@@ -20,7 +20,9 @@ setup(
     install_requires=[
     ],
     tests_require=[
-    ] + (['unittest2'] if sys.version_info < (2, 7) else []),
+        'six',
+        'mog-commons >= 0.2.2',
+    ],
     package_dir={'': SRC_DIR},
     packages=find_packages(SRC_DIR),
     include_package_data=True,
