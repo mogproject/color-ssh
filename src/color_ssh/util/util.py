@@ -13,4 +13,4 @@ def arg2bytes(arg):
 
 
 def io2bytes(fd):
-    return fd.buffer if PY3 else fd
+    return fd.buffer if hasattr(fd, 'buffer') else fd
