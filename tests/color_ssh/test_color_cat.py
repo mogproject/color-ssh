@@ -2,9 +2,9 @@
 from __future__ import division, print_function, absolute_import, unicode_literals
 
 import os
-import sys
 import six
 from mog_commons.unittest import TestCase
+from color_ssh import color_cat
 from color_ssh.color_cat import Setting
 
 
@@ -15,16 +15,16 @@ class TestSetting(TestCase):
 
     def _parse(self, args):
         xs = []
-        for arg in args:
+        for arg in ['color-cat'] + args:
             if six.PY2 and isinstance(arg, unicode):
                 xs.append(arg.encode('utf-8'))
             elif six.PY3 and isinstance(arg, bytes):
                 xs.append(os.fsdecode(arg))
             else:
                 xs.append(arg)
-        return Setting().parse_args(sys.stdout, ['color-cat' if six.PY3 else b'color-cat'] + xs)
+        return Setting().parse_args(xs)
 
-    def test_parse_args_py2(self):
+    def test_parse_args(self):
         self._check(self._parse([]), Setting(b'\x1b[31m', [None]))
         self._check(self._parse(['']), Setting(b'\x1b[31m', [b'']))
         self._check(self._parse(['a', 'b', 'c', 'd', 'e']),
@@ -82,20 +82,42 @@ class TestSetting(TestCase):
 
     def test_parse_args_error(self):
         with self.withBytesOutput() as (out, err):
-            self.assertSystemExit(2, Setting().parse_args, out, ['color-cat', '-l', '1', '-c', 'xxx'])
-        self.assertEqual(out.getvalue().split(b'\n', 3)[:3],
-                         [b'Invalid color name: xxx', b'', b'Usage: setup.py [options...] [file ...]'])
+            self.assertSystemExit(2, Setting().parse_args, ['color-cat', '-l', '1', '-c', 'xxx'], out)
+        self.assertEqual(out.getvalue().split(b'\n')[0], b'Usage: setup.py [options...] [file ...]')
+        self.assertEqual(out.getvalue().split(b'\n')[-2], b'Invalid color name: xxx')
         self.assertEqual(err.getvalue(), b'')
 
         with self.withBytesOutput() as (out, err):
-            self.assertSystemExit(2, Setting().parse_args, out,
-                                  ['color-cat', '-l', '1', '-c', 'あいう'.encode('utf-8')])
-        self.assertEqual(out.getvalue().split(b'\n', 3)[:3],
-                         ['Invalid color name: あいう'.encode('utf-8'), b'', b'Usage: setup.py [options...] [file ...]'])
+            self.assertSystemExit(2, Setting().parse_args,
+                                  ['color-cat', '-l', '1', '-c', 'あいう'.encode('utf-8')], out)
+        self.assertEqual(out.getvalue().split(b'\n')[0], b'Usage: setup.py [options...] [file ...]')
+        self.assertEqual(out.getvalue().split(b'\n')[-2], 'Invalid color name: あいう'.encode('utf-8'))
         self.assertEqual(err.getvalue(), b'')
 
         with self.withBytesOutput() as (out, err):
-            self.assertSystemExit(2, Setting().parse_args, out, ['color-cat', '-l', '1', '-c', b'\xff\xfe'])
-        self.assertEqual(out.getvalue().split(b'\n', 3)[:3],
-                         [b'Invalid color name: \xff\xfe', b'', b'Usage: setup.py [options...] [file ...]'])
+            self.assertSystemExit(2, Setting().parse_args, ['color-cat', '-l', '1', '-c', b'\xff\xfe'], out)
+        self.assertEqual(out.getvalue().split(b'\n')[0], b'Usage: setup.py [options...] [file ...]')
+        self.assertEqual(out.getvalue().split(b'\n')[-2], b'Invalid color name: \xff\xfe')
         self.assertEqual(err.getvalue(), b'')
+
+
+class TestMain(TestCase):
+    def test_main(self):
+        with self.withBytesOutput() as (out, err):
+            args = ['color-cat',
+                    os.path.join('tests', 'resources', 'test_01.txt'),
+                    os.path.join('tests', 'resources', 'test_02.txt')]
+            ret = color_cat.main(args, stdout=out, stderr=err)
+            self.assertEqual(ret, 0)
+        self.assertEqual(out.getvalue(),
+                         b'\x1b[31mfoo\n\x1b[0m\x1b[31mbar\n\x1b[0m\x1b[31mbaz\n\x1b[0m'
+                         b'\x1b[31m123\n\x1b[0m\x1b[31m456\n\x1b[0m\x1b[31m789\n\x1b[0m')
+        self.assertEqual(err.getvalue(), b'')
+
+    def test_main_error(self):
+        with self.withBytesOutput() as (out, err):
+            args = ['color-cat', os.path.join('tests', 'resources', 'test_01_not_exist.txt')]
+            ret = color_cat.main(args, stdout=out, stderr=err)
+            self.assertEqual(ret, 1)
+        self.assertEqual(out.getvalue(), b'')
+        self.assertTrue(b'No such file or directory' in err.getvalue())
