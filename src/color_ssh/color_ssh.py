@@ -4,14 +4,9 @@ import sys
 import shlex
 import subprocess
 from optparse import OptionParser
-
-PY3 = sys.version_info >= (3,)
+from color_ssh.util.util import *
 
 __all__ = []
-
-
-def _io2bytes(fd):
-    return fd.buffer if PY3 else fd
 
 
 class Setting(object):
@@ -22,7 +17,11 @@ class Setting(object):
         self.label = label
         self.command = command
 
-    def parse_args(self, argv):
+    def parse_args(self, argv, stdout=io2bytes(sys.stdout)):
+        """
+        :param argv: list of str
+        :param stdout: binary-data stdout output
+        """
         parser = OptionParser(version=self.VERSION, usage=self.USAGE)
         parser.allow_interspersed_args = False
 
@@ -31,14 +30,14 @@ class Setting(object):
             help='set label name to LABEL'
         )
         parser.add_option(
-            '--ssh', dest='ssh', default='ssh', type='string', metavar='SSH',
+            '--ssh', dest='ssh', default=str('ssh'), type='string', metavar='SSH',
             help='override ssh command line string to SSH'
         )
 
         option, args = parser.parse_args(argv[1:])
 
         if len(args) < 2:
-            parser.print_help()
+            stdout.write(arg2bytes(parser.format_help().encode('utf-8')))
             parser.exit(2)
 
         self.label = option.label or args[0].rsplit('@', 1)[-1]
@@ -46,18 +45,23 @@ class Setting(object):
         return self
 
 
-def main(argv=sys.argv, stdin=_io2bytes(sys.stdin), stdout=_io2bytes(sys.stdout), stderr=_io2bytes(sys.stderr)):
+def main(argv=sys.argv, stdin=io2bytes(sys.stdin), stdout=io2bytes(sys.stdout), stderr=io2bytes(sys.stderr)):
     """
     Main function
     """
     setting = Setting().parse_args(argv)
+    prefix = ['color-cat', '-l', setting.label]
 
     try:
-        proc_stdout = subprocess.Popen(
-            ['color-cat', '-l', setting.label], stdin=subprocess.PIPE, stdout=stdout, stderr=stderr)
-        proc_stderr = subprocess.Popen(
-            ['color-cat', '-l', setting.label, '-s', '+'], stdin=subprocess.PIPE, stdout=stderr, stderr=stderr)
+        proc_stdout = subprocess.Popen(prefix, stdin=subprocess.PIPE, stdout=stdout, stderr=stderr)
+        proc_stderr = subprocess.Popen(prefix + ['-s', '+'], stdin=subprocess.PIPE, stdout=stderr, stderr=stderr)
         ret = subprocess.call(setting.command, stdin=stdin, stdout=proc_stdout.stdin, stderr=proc_stderr.stdin)
+
+        proc_stdout.stdin.close()
+        proc_stderr.stdin.close()
+
+        proc_stdout.wait()
+        proc_stderr.wait()
 
     except Exception as e:
         msg = '%s: %s\nCommand: %s\n' % (e.__class__.__name__, e, setting.command)

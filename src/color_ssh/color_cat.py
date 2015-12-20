@@ -1,22 +1,12 @@
 from __future__ import division, print_function, absolute_import, unicode_literals
 
 import sys
-import os
 import io
 from optparse import OptionParser
 from color_ssh.setting.color import *
-
-PY3 = sys.version_info >= (3,)
+from color_ssh.util.util import *
 
 __all__ = []
-
-
-def _arg2bytes(arg):
-    return os.fsencode(arg) if PY3 else arg
-
-
-def _io2bytes(fd):
-    return fd.buffer if PY3 else fd
 
 
 class Setting(object):
@@ -27,10 +17,10 @@ class Setting(object):
         self.prefix = prefix
         self.paths = paths
 
-    def parse_args(self, stdout, argv):
+    def parse_args(self, argv, stdout=io2bytes(sys.stdout)):
         """
-        :param stdout: binary-data stdout output
         :param argv: list of str
+        :param stdout: binary-data stdout output
         """
         parser = OptionParser(version=self.VERSION, usage=self.USAGE)
 
@@ -52,31 +42,31 @@ class Setting(object):
         # encode each arg string to bytes if Python3
         color = COLOR_NAMES.get(option.color.lower()) if option.color else self._get_color(option.label)
         if color is None:
-            stdout.write(b'Invalid color name: ' + _arg2bytes(option.color) + b'\n\n')
-            stdout.write(parser.format_help().encode('utf-8'))
+            stdout.write(arg2bytes(parser.format_help().encode('utf-8')))
+            stdout.write(b'\nInvalid color name: ' + arg2bytes(option.color) + b'\n')
             parser.exit(2)
 
         self.prefix = self._make_prefix(option.label, color, option.separator)
-        self.paths = [_arg2bytes(arg) for arg in args] or [None]
+        self.paths = [arg2bytes(arg) for arg in args] or [None]
         return self
 
     @staticmethod
     def _get_color(label):
         index = 0
-        for c in _arg2bytes(label):
+        for c in arg2bytes(label):
             index = (index + (c if PY3 else ord(c))) % len(COLOR_SET)
         return COLOR_SET[index]
 
     @staticmethod
     def _make_prefix(label, color, separator):
-        return (INVERSE + color + _arg2bytes(label) + RESET + _arg2bytes(separator) + RESET if label else b'') + color
+        return (INVERSE + color + arg2bytes(label) + RESET + arg2bytes(separator) + RESET if label else b'') + color
 
 
-def main(argv=sys.argv, stdin=_io2bytes(sys.stdin), stdout=_io2bytes(sys.stdout), stderr=_io2bytes(sys.stderr)):
+def main(argv=sys.argv, stdin=io2bytes(sys.stdin), stdout=io2bytes(sys.stdout), stderr=io2bytes(sys.stderr)):
     """
     Main function
     """
-    setting = Setting().parse_args(stdout, argv)
+    setting = Setting().parse_args(argv, stdout)
 
     # Note: Do not use 'fileinput' module because it causes a buffering problem.
     try:
