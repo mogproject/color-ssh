@@ -88,6 +88,13 @@ class TestSetting(TestCase):
 
         # parallelism
         self.assertEqual(self._parse(['-H', 'server-11 root@server-12', '-p3', 'pwd']).parallelism, 3)
+        self.assertEqual(self._parse(['-H', 'server-11 root@server-12', '--par', '15', 'pwd']).parallelism, 15)
+
+        # distribute
+        self._check(self._parse(['-H', 'server-11 root@server-12', '--distribute', 'echo "foo bar"', 'x', 'y', 'z']), [
+            ('server-11', ['ssh', 'server-11', 'echo', 'foo bar', 'x', 'y']),
+            ('server-12', ['ssh', 'root@server-12', 'echo', 'foo bar', 'z']),
+        ])
 
     def test_parse_args_error(self):
         with self.withBytesOutput() as (out, err):
@@ -139,8 +146,10 @@ class TestMain(TestCase):
             out.seek(0)
             err.seek(0)
 
-            self.assertEqual(out.read(), (f(b'abc') + f(b'foo') + f('あいうえお'.encode('utf-8')) + f(b'\xff\xfe')) * 2)
-            self.assertEqual(err.read(), (g(b'def') + g(b'bar') + g('かきくけこ'.encode('utf-8')) + g(b'\xfd\xfc')) * 2)
+            self.assertEqual(sorted(out.read()),
+                             sorted((f(b'abc') + f(b'foo') + f('あいうえお'.encode('utf-8')) + f(b'\xff\xfe')) * 2))
+            self.assertEqual(sorted(err.read()),
+                             sorted((g(b'def') + g(b'bar') + g('かきくけこ'.encode('utf-8')) + g(b'\xfd\xfc')) * 2))
 
     def test_main_load_error(self):
         with self.__with_temp_output() as (out, err):

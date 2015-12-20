@@ -5,8 +5,8 @@ import io
 import shlex
 import subprocess
 from optparse import OptionParser
-from color_ssh.util.util import *
 from multiprocessing.pool import Pool
+from color_ssh.util.util import *
 
 __all__ = []
 
@@ -52,6 +52,10 @@ class Setting(object):
             '-p', '--par', dest='parallelism', default=self.DEFAULT_PARALLELISM, type='int', metavar='PAR',
             help='max number of parallel threads (default: %d)' % self.DEFAULT_PARALLELISM
         )
+        parser.add_option(
+            '--distribute', dest='distribute', default=None, type='string', metavar='PREFIX',
+            help='split and distribute command-line arguments to each host'
+        )
 
         option, args = parser.parse_args(argv[1:])
         hosts = self._load_hosts(option.host_file) + (option.host_string.split() if option.host_string else [])
@@ -64,11 +68,16 @@ class Setting(object):
 
         if not hosts:
             hosts = args[:1]
-            command = args[1:]
-        else:
-            command = args
+            del args[0]
 
-        tasks = [(option.label or self._extract_label(host), prefix + [host] + command) for host in hosts]
+        # distribute args
+        if option.distribute:
+            dist_prefix = shlex.split(option.distribute)
+            d = distribute(len(hosts), args)
+            tasks = [(option.label or self._extract_label(host),
+                      prefix + [host] + dist_prefix + d[i]) for i, host in enumerate(hosts) if d[i]]
+        else:
+            tasks = [(option.label or self._extract_label(host), prefix + [host] + args) for host in hosts]
 
         self.parallelism = option.parallelism
         self.tasks = tasks
