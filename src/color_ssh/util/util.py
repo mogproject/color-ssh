@@ -3,7 +3,7 @@ from __future__ import division, print_function, absolute_import, unicode_litera
 import sys
 import os
 
-__all__ = ['PY3', 'arg2bytes', 'io2bytes', 'distribute']
+__all__ = ['PY3', 'arg2bytes', 'io2bytes', 'distribute', 'exception_handler']
 
 PY3 = sys.version_info >= (3,)
 
@@ -37,3 +37,24 @@ def distribute(num_workers, tasks):
         ret.append(tasks[j:j + k])
         j += k
     return ret
+
+
+#
+# Decorators
+#
+def exception_handler(exception_func):
+    def f(func):
+        import functools
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except KeyboardInterrupt:
+                return 130
+            except Exception as e:
+                exception_func(e)
+                return 1
+
+        return wrapper
+    return f

@@ -68,8 +68,9 @@ def main(argv=sys.argv, stdin=io2bytes(sys.stdin), stdout=io2bytes(sys.stdout), 
     """
     setting = Setting().parse_args(argv, stdout)
 
-    # Note: Do not use 'fileinput' module because it causes a buffering problem.
-    try:
+    @exception_handler(lambda e: stderr.write(('%s: %s\n' % (e.__class__.__name__, e)).encode('utf-8', 'ignore')))
+    def f():
+        # Note: Do not use 'fileinput' module because it causes a buffering problem.
         for path in setting.paths:
             fh = stdin if path is None else io.open(path, 'rb', 0)
             try:
@@ -79,9 +80,6 @@ def main(argv=sys.argv, stdin=io2bytes(sys.stdin), stdout=io2bytes(sys.stdout), 
             finally:
                 if fh is not stdin:
                     fh.close()
+        return 0
 
-    except Exception as e:
-        stderr.write(('%s: %s\n' % (e.__class__.__name__, e)).encode('utf-8', 'ignore'))
-        return 1
-
-    return 0
+    return f()
