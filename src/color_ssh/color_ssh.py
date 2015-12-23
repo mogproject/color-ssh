@@ -106,7 +106,12 @@ def run_task(args):
 
     prefix = ['color-cat', '-l', label]
 
-    try:
+    def exc_func(e):
+        msg = '%s: %s\nlabel=%s, command=%s\n' % (e.__class__.__name__, e, label, command)
+        stderr.write(msg.encode('utf-8', 'ignore'))
+
+    @exception_handler(exc_func)
+    def f():
         proc_stdout = subprocess.Popen(prefix, stdin=subprocess.PIPE, stdout=stdout, stderr=stderr)
         proc_stderr = subprocess.Popen(prefix + ['-s', '+'], stdin=subprocess.PIPE, stdout=stderr, stderr=stderr)
         ret = subprocess.call(command, stdin=None, stdout=proc_stdout.stdin, stderr=proc_stderr.stdin)
@@ -116,11 +121,9 @@ def run_task(args):
 
         proc_stdout.wait()
         proc_stderr.wait()
-    except Exception as e:
-        msg = '%s: %s\nlabel=%s, command=%s\n' % (e.__class__.__name__, e, label, command)
-        stderr.write(msg.encode('utf-8', 'ignore'))
-        return 1
-    return ret
+        return ret
+
+    return f()
 
 
 def main(argv=sys.argv, stdout=io2bytes(sys.stdout), stderr=io2bytes(sys.stderr)):
@@ -128,7 +131,8 @@ def main(argv=sys.argv, stdout=io2bytes(sys.stdout), stderr=io2bytes(sys.stderr)
     Main function
     """
 
-    try:
+    @exception_handler(lambda e: stderr.write(('%s: %s\n' % (e.__class__.__name__, e)).encode('utf-8', 'ignore')))
+    def f():
         setting = Setting().parse_args(argv, stdout)
         n = min(len(setting.tasks), setting.parallelism)
         if n <= 1:
@@ -136,9 +140,6 @@ def main(argv=sys.argv, stdout=io2bytes(sys.stdout), stderr=io2bytes(sys.stderr)
         else:
             pool = Pool(n)
             ret = pool.map(run_task, setting.tasks)
-    except Exception as e:
-        msg = '%s: %s\n' % (e.__class__.__name__, e)
-        stderr.write(msg.encode('utf-8', 'ignore'))
-        return 1
+        return max(ret)
 
-    return max(ret)
+    return f()
