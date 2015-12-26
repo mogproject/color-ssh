@@ -62,14 +62,15 @@ class TestSetting(TestCase):
             ('server-4', ['ssh', 'server-4', 'pwd']),
             ('server-5', ['ssh', 'server-5', 'pwd']),
             ('server-6', ['ssh', 'server-6', 'pwd']),
-            ('server-7', ['ssh', 'server-7', 'pwd']),
-            ('server-8', ['ssh', 'server-8', 'pwd']),
+            ('server-7', ['ssh', '-p', '22', 'server-7', 'pwd']),
+            ('server-8', ['ssh', '-p', '1022', 'server-8', 'pwd']),
             ('server-9', ['ssh', 'root@server-9', 'pwd']),
-            ('server-10', ['ssh', 'root@server-10', 'pwd']),
+            ('server-10', ['ssh', '-p', '1022', 'root@server-10', 'pwd']),
         ])
-        self._check(self._parse(['-H', 'server-11 root@server-12', 'pwd']), [
+        self._check(self._parse(['-H', 'server-11 root@server-12 root@server-13:1022', 'pwd']), [
             ('server-11', ['ssh', 'server-11', 'pwd']),
             ('server-12', ['ssh', 'root@server-12', 'pwd']),
+            ('server-13', ['ssh', '-p', '1022', 'root@server-13', 'pwd']),
         ])
         self._check(self._parse(['--hosts', hosts_path, '--host', 'server-11 root@server-12', 'pwd']), [
             ('server-1', ['ssh', 'server-1', 'pwd']),
@@ -78,10 +79,10 @@ class TestSetting(TestCase):
             ('server-4', ['ssh', 'server-4', 'pwd']),
             ('server-5', ['ssh', 'server-5', 'pwd']),
             ('server-6', ['ssh', 'server-6', 'pwd']),
-            ('server-7', ['ssh', 'server-7', 'pwd']),
-            ('server-8', ['ssh', 'server-8', 'pwd']),
+            ('server-7', ['ssh', '-p', '22', 'server-7', 'pwd']),
+            ('server-8', ['ssh', '-p', '1022', 'server-8', 'pwd']),
             ('server-9', ['ssh', 'root@server-9', 'pwd']),
-            ('server-10', ['ssh', 'root@server-10', 'pwd']),
+            ('server-10', ['ssh', '-p', '1022', 'root@server-10', 'pwd']),
             ('server-11', ['ssh', 'server-11', 'pwd']),
             ('server-12', ['ssh', 'root@server-12', 'pwd']),
         ])
@@ -102,6 +103,16 @@ class TestSetting(TestCase):
             self.assertSystemExit(2, Setting().parse_args, ['color-ssh', 'server-1'], out)
             self.assertSystemExit(2, Setting().parse_args, ['color-ssh', '--label', 'x'], out)
             self.assertSystemExit(2, Setting().parse_args, ['color-ssh', '--host', '  ', 'pwd'], out)
+
+    def test_parse_host_error(self):
+        self.assertRaises(ValueError, Setting._parse_host, '')
+        self.assertRaises(ValueError, Setting._parse_host, '@')
+        self.assertRaises(ValueError, Setting._parse_host, ':')
+        self.assertRaises(ValueError, Setting._parse_host, 'a:')
+        self.assertRaises(ValueError, Setting._parse_host, 'a:b')
+        self.assertRaises(ValueError, Setting._parse_host, '@a:0')
+        self.assertRaises(ValueError, Setting._parse_host, 'a:b@c:0')
+        self.assertRaises(ValueError, Setting._parse_host, 'a@@c:0')
 
 
 class TestMain(TestCase):

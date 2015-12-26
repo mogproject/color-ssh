@@ -4,6 +4,7 @@ import sys
 import io
 import shlex
 import subprocess
+import re
 from optparse import OptionParser
 from multiprocessing.pool import Pool
 from color_ssh.util.util import *
@@ -64,20 +65,25 @@ class Setting(object):
             stdout.write(arg2bytes(parser.format_help().encode('utf-8')))
             parser.exit(2)
 
-        prefix = shlex.split(option.ssh)
-
         if not hosts:
             hosts = args[:1]
             del args[0]
 
-        # distribute args
+        # parse hosts
+        parsed_hosts = [self._parse_host(h) for h in hosts]
+
+        tasks = []
         if option.distribute:
+            # distribute args
             dist_prefix = shlex.split(option.distribute)
             d = distribute(len(hosts), args)
-            tasks = [(option.label or self._extract_label(host),
-                      prefix + [host] + dist_prefix + d[i]) for i, host in enumerate(hosts) if d[i]]
+            for i, (user, host, port) in enumerate(parsed_hosts):
+                if d[i]:
+                    label = option.label or host
+                    tasks.append((label, self._ssh_args(option.ssh, user, host, port) + dist_prefix + d[i]))
         else:
-            tasks = [(option.label or self._extract_label(host), prefix + [host] + args) for host in hosts]
+            for user, host, port in parsed_hosts:
+                tasks.append((option.label or host, self._ssh_args(option.ssh, user, host, port) + args))
 
         self.parallelism = option.parallelism
         self.tasks = tasks
@@ -93,8 +99,20 @@ class Setting(object):
         return list(filter(lambda x: x, (line.strip() for line in lines)))
 
     @staticmethod
-    def _extract_label(host):
-        return host.rsplit('@', 1)[-1]
+    def _parse_host(s):
+        """
+        :param s: string : [user@]host[:port]
+        :return: tuple of (user, host, port)
+        """
+        ret = re.match('^(?:([^:@]+)@)?([^:@]+)(?::(\d+))?$', s)
+        if not ret:
+            raise ValueError('Illegal format: %s' % s)
+        return ret.groups()
+
+    @staticmethod
+    def _ssh_args(ssh_cmd, user, host, port):
+        user_host = [('' if user is None else '%s@' % user) + host]
+        return shlex.split(ssh_cmd) + ([] if port is None else ['-p', port]) + user_host
 
 
 def run_task(args):
