@@ -110,8 +110,8 @@ class TestMain(TestCase):
             ret = color_cat.main(args, stdout=out, stderr=err)
             self.assertEqual(ret, 0)
         self.assertEqual(out.getvalue(),
-                         b'\x1b[31mfoo\n\x1b[0m\x1b[31mbar\n\x1b[0m\x1b[31mbaz\n\x1b[0m'
-                         b'\x1b[31m123\n\x1b[0m\x1b[31m456\n\x1b[0m\x1b[31m789\n\x1b[0m')
+                         b'\x1b[31mfoo\x1b[0m\n\x1b[31mbar\x1b[0m\n\x1b[31mbaz\x1b[0m\n'
+                         b'\x1b[31m123\x1b[0m\n\x1b[31m456\x1b[0m\n\x1b[31m789\x1b[0m\n')
         self.assertEqual(err.getvalue(), b'')
 
     def test_main_error(self):

@@ -12,6 +12,12 @@ class TestUtil(TestCase):
 
         self.assertEqual(f(), 130)
 
+        @exception_handler(lambda e: e)
+        def g():
+            raise IOError(32, '')
+
+        self.assertEqual(g(), 0)
+
     def test_distribute(self):
         self.assertEqual(distribute(0, []), [])
         self.assertEqual(distribute(0, ['a']), [])
