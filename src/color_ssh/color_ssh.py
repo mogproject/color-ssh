@@ -1,6 +1,7 @@
 from __future__ import division, print_function, absolute_import, unicode_literals
 
 import sys
+import os
 import io
 import shlex
 import subprocess
@@ -57,6 +58,10 @@ class Setting(object):
             '--distribute', dest='distribute', default=None, type='string', metavar='PREFIX',
             help='split and distribute command-line arguments to each host'
         )
+        parser.add_option(
+            '--upload', dest='upload', default=False, action='store_true',
+            help='upload files before executing a command (all args are regarded as paths)'
+        )
 
         option, args = parser.parse_args(argv[1:])
         hosts = self._load_hosts(option.host_file) + (option.host_string.split() if option.host_string else [])
@@ -79,11 +84,24 @@ class Setting(object):
             d = distribute(len(hosts), args)
             for i, (user, host, port) in enumerate(parsed_hosts):
                 if d[i]:
+                    setup_commands = []
+                    if option.upload:
+                        # create directories
+                        dirs = list(set(x for x in [os.path.dirname(arg) for arg in d[i]] if x != '' and x != '.'))
+                        if dirs:
+                            setup_commands.append(
+                                self._ssh_args(option.ssh, user, host, port) + [str('mkdir'), str('-p')] + dirs
+                            )
+
+                        # upload files before executing main commands
+                        setup_commands.extend([self._scp_args(str('scp'), user, host, port, arg) for arg in d[i]])
+
                     label = option.label or host
-                    tasks.append((label, self._ssh_args(option.ssh, user, host, port) + dist_prefix + d[i]))
+                    ssh_args = self._ssh_args(option.ssh, user, host, port)
+                    tasks.append((label, ssh_args + dist_prefix + d[i], setup_commands))
         else:
             for user, host, port in parsed_hosts:
-                tasks.append((option.label or host, self._ssh_args(option.ssh, user, host, port) + args))
+                tasks.append((option.label or host, self._ssh_args(option.ssh, user, host, port) + args, []))
 
         self.parallelism = option.parallelism
         self.tasks = tasks
@@ -110,13 +128,26 @@ class Setting(object):
         return ret.groups()
 
     @staticmethod
+    def _build_host_string(user, host):
+        ret = host
+        if user:
+            ret = '%s@' % user + ret
+        return ret
+
+    @staticmethod
     def _ssh_args(ssh_cmd, user, host, port):
-        user_host = [('' if user is None else '%s@' % user) + host]
-        return shlex.split(ssh_cmd) + ([] if port is None else ['-p', port]) + user_host
+        return shlex.split(ssh_cmd) + ([] if port is None else ['-p', port]) + [Setting._build_host_string(user, host)]
+
+    @staticmethod
+    def _scp_args(scp_cmd, user, host, port, path):
+        return shlex.split(scp_cmd) + ([] if port is None else ['-P', port]) + [
+            path,
+            Setting._build_host_string(user, host) + str(':') + path
+        ]
 
 
 def run_task(args):
-    label, command = args
+    label, command, setup_commands = args
 
     # We don't pass stdout/stderr file descriptors since this function runs in the forked processes.
     stdout = io2bytes(sys.stdout)
@@ -132,6 +163,14 @@ def run_task(args):
     def f():
         proc_stdout = subprocess.Popen(prefix, stdin=subprocess.PIPE, stdout=stdout, stderr=stderr)
         proc_stderr = subprocess.Popen(prefix + ['-s', '+'], stdin=subprocess.PIPE, stdout=stderr, stderr=stderr)
+
+        for cmd in setup_commands:
+            proc_stderr.stdin.write(('setup: %s\n' % cmd).encode('utf-8', 'ignore'))
+
+            r = subprocess.call(cmd, stdin=None, stdout=proc_stdout.stdin, stderr=proc_stderr.stdin)
+            if r != 0:
+                raise RuntimeError('Failed to execute setup command: %s' % cmd)
+
         ret = subprocess.call(command, stdin=None, stdout=proc_stdout.stdin, stderr=proc_stderr.stdin)
 
         proc_stdout.stdin.close()
