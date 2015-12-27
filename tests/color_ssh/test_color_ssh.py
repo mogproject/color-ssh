@@ -29,62 +29,62 @@ class TestSetting(TestCase):
 
     def test_parse_args(self):
         self._check(self._parse(['server-1', 'pwd']),
-                    [('server-1', ['ssh', 'server-1', 'pwd'])])
+                    [('server-1', ['ssh', 'server-1', 'pwd'], [])])
         self._check(self._parse(['user@server-1', 'ls', '-l']),
-                    [('server-1', ['ssh', 'user@server-1', 'ls', '-l'])])
+                    [('server-1', ['ssh', 'user@server-1', 'ls', '-l'], [])])
 
         # label
         self._check(self._parse(['-l', 'label', 'user@server-1', 'ls', '-l']),
-                    [('label', ['ssh', 'user@server-1', 'ls', '-l'])])
+                    [('label', ['ssh', 'user@server-1', 'ls', '-l'], [])])
         self._check(self._parse(['--label', 'label', 'user@server-1', 'ls', '-l']),
-                    [('label', ['ssh', 'user@server-1', 'ls', '-l'])])
+                    [('label', ['ssh', 'user@server-1', 'ls', '-l'], [])])
         self._check(self._parse(['-llabel', 'user@server-1', 'ls', '-l']),
-                    [('label', ['ssh', 'user@server-1', 'ls', '-l'])])
+                    [('label', ['ssh', 'user@server-1', 'ls', '-l'], [])])
         self._check(self._parse(['--label', 'label', '--ssh', '/usr/bin/ssh -v', 'user@server-1', 'ls', '-l']),
-                    [('label', ['/usr/bin/ssh', '-v', 'user@server-1', 'ls', '-l'])])
+                    [('label', ['/usr/bin/ssh', '-v', 'user@server-1', 'ls', '-l'], [])])
 
         # ssh
         self._check(self._parse(['--ssh', '/usr/bin/ssh -v --option "a b c"', 'user@server-1', 'ls', '-l']),
-                    [('server-1', ['/usr/bin/ssh', '-v', '--option', 'a b c', 'user@server-1', 'ls', '-l'])])
+                    [('server-1', ['/usr/bin/ssh', '-v', '--option', 'a b c', 'user@server-1', 'ls', '-l'], [])])
         self._check(self._parse(['--label', 'あいう'.encode('utf-8'), 'user@server-1', 'ls', '-l']),
-                    [('あいう' if PY3 else 'あいう'.encode('utf-8'), ['ssh', 'user@server-1', 'ls', '-l'])])
+                    [('あいう' if PY3 else 'あいう'.encode('utf-8'), ['ssh', 'user@server-1', 'ls', '-l'], [])])
         self._check(self._parse(['--label', b'\xff\xfe', 'user@server-1', 'ls', '-l']),
-                    [('\udcff\udcfe' if PY3 else b'\xff\xfe', ['ssh', 'user@server-1', 'ls', '-l'])])
+                    [('\udcff\udcfe' if PY3 else b'\xff\xfe', ['ssh', 'user@server-1', 'ls', '-l'], [])])
         self._check(self._parse(['server-1', 'echo', b'\xff\xfe']),
-                    [('server-1', ['ssh', 'server-1', 'echo', '\udcff\udcfe' if PY3 else b'\xff\xfe'])])
+                    [('server-1', ['ssh', 'server-1', 'echo', '\udcff\udcfe' if PY3 else b'\xff\xfe'], [])])
 
         # hosts
         hosts_path = os.path.join('tests', 'resources', 'test_color_ssh_hosts.txt')
         self._check(self._parse(['-h', hosts_path, 'pwd']), [
-            ('server-1', ['ssh', 'server-1', 'pwd']),
-            ('server-2', ['ssh', 'server-2', 'pwd']),
-            ('server-3', ['ssh', 'server-3', 'pwd']),
-            ('server-4', ['ssh', 'server-4', 'pwd']),
-            ('server-5', ['ssh', 'server-5', 'pwd']),
-            ('server-6', ['ssh', 'server-6', 'pwd']),
-            ('server-7', ['ssh', '-p', '22', 'server-7', 'pwd']),
-            ('server-8', ['ssh', '-p', '1022', 'server-8', 'pwd']),
-            ('server-9', ['ssh', 'root@server-9', 'pwd']),
-            ('server-10', ['ssh', '-p', '1022', 'root@server-10', 'pwd']),
+            ('server-1', ['ssh', 'server-1', 'pwd'], []),
+            ('server-2', ['ssh', 'server-2', 'pwd'], []),
+            ('server-3', ['ssh', 'server-3', 'pwd'], []),
+            ('server-4', ['ssh', 'server-4', 'pwd'], []),
+            ('server-5', ['ssh', 'server-5', 'pwd'], []),
+            ('server-6', ['ssh', 'server-6', 'pwd'], []),
+            ('server-7', ['ssh', '-p', '22', 'server-7', 'pwd'], []),
+            ('server-8', ['ssh', '-p', '1022', 'server-8', 'pwd'], []),
+            ('server-9', ['ssh', 'root@server-9', 'pwd'], []),
+            ('server-10', ['ssh', '-p', '1022', 'root@server-10', 'pwd'], []),
         ])
         self._check(self._parse(['-H', 'server-11 root@server-12 root@server-13:1022', 'pwd']), [
-            ('server-11', ['ssh', 'server-11', 'pwd']),
-            ('server-12', ['ssh', 'root@server-12', 'pwd']),
-            ('server-13', ['ssh', '-p', '1022', 'root@server-13', 'pwd']),
+            ('server-11', ['ssh', 'server-11', 'pwd'], []),
+            ('server-12', ['ssh', 'root@server-12', 'pwd'], []),
+            ('server-13', ['ssh', '-p', '1022', 'root@server-13', 'pwd'], []),
         ])
         self._check(self._parse(['--hosts', hosts_path, '--host', 'server-11 root@server-12', 'pwd']), [
-            ('server-1', ['ssh', 'server-1', 'pwd']),
-            ('server-2', ['ssh', 'server-2', 'pwd']),
-            ('server-3', ['ssh', 'server-3', 'pwd']),
-            ('server-4', ['ssh', 'server-4', 'pwd']),
-            ('server-5', ['ssh', 'server-5', 'pwd']),
-            ('server-6', ['ssh', 'server-6', 'pwd']),
-            ('server-7', ['ssh', '-p', '22', 'server-7', 'pwd']),
-            ('server-8', ['ssh', '-p', '1022', 'server-8', 'pwd']),
-            ('server-9', ['ssh', 'root@server-9', 'pwd']),
-            ('server-10', ['ssh', '-p', '1022', 'root@server-10', 'pwd']),
-            ('server-11', ['ssh', 'server-11', 'pwd']),
-            ('server-12', ['ssh', 'root@server-12', 'pwd']),
+            ('server-1', ['ssh', 'server-1', 'pwd'], []),
+            ('server-2', ['ssh', 'server-2', 'pwd'], []),
+            ('server-3', ['ssh', 'server-3', 'pwd'], []),
+            ('server-4', ['ssh', 'server-4', 'pwd'], []),
+            ('server-5', ['ssh', 'server-5', 'pwd'], []),
+            ('server-6', ['ssh', 'server-6', 'pwd'], []),
+            ('server-7', ['ssh', '-p', '22', 'server-7', 'pwd'], []),
+            ('server-8', ['ssh', '-p', '1022', 'server-8', 'pwd'], []),
+            ('server-9', ['ssh', 'root@server-9', 'pwd'], []),
+            ('server-10', ['ssh', '-p', '1022', 'root@server-10', 'pwd'], []),
+            ('server-11', ['ssh', 'server-11', 'pwd'], []),
+            ('server-12', ['ssh', 'root@server-12', 'pwd'], []),
         ])
 
         # parallelism
@@ -93,8 +93,21 @@ class TestSetting(TestCase):
 
         # distribute
         self._check(self._parse(['-H', 'server-11 root@server-12', '--distribute', 'echo "foo bar"', 'x', 'y', 'z']), [
-            ('server-11', ['ssh', 'server-11', 'echo', 'foo bar', 'x', 'y']),
-            ('server-12', ['ssh', 'root@server-12', 'echo', 'foo bar', 'z']),
+            ('server-11', ['ssh', 'server-11', 'echo', 'foo bar', 'x', 'y'], []),
+            ('server-12', ['ssh', 'root@server-12', 'echo', 'foo bar', 'z'], []),
+        ])
+
+        # upload
+        self._check(self._parse([
+            '-H', 'server-11 root@server-12', '--distribute', 'echo "foo bar"', '--upload', 'dir1/x', 'dir1/y', 'z'
+        ]), [
+            ('server-11', ['ssh', 'server-11', 'echo', 'foo bar', 'dir1/x', 'dir1/y'], [
+                ['ssh', 'server-11', 'mkdir', '-p', 'dir1'],
+                ['scp', 'dir1/x', 'server-11:dir1/x'],
+                ['scp', 'dir1/y', 'server-11:dir1/y']
+            ]),
+            ('server-12', ['ssh', 'root@server-12', 'echo', 'foo bar', 'z'],
+             [['scp', 'z', 'root@server-12:z']]),
         ])
 
     def test_parse_args_error(self):
