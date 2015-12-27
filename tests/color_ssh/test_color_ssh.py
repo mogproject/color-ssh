@@ -204,6 +204,18 @@ class TestMain(TestCase):
             self.assertEqual(out.read(), b'')
             self.assertTrue(b'No such file or directory' in err.read())
 
+    def test_run_task_error(self):
+        with self.__with_temp_output() as (out, err):
+            ret = color_ssh.run_task(('lab', 'echo x', ['true', 'false']))
+            self.assertEqual(ret, 1)
+
+            out.seek(0)
+            err.seek(0)
+
+            self.assertEqual(out.read(), b'')
+            self.assertEqual(b'RuntimeError: Failed to execute setup command: false\nlabel=lab, command=echo x\n',
+                             err.read())
+
     @staticmethod
     @contextmanager
     def __with_temp_output():
