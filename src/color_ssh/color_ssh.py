@@ -131,7 +131,7 @@ class Setting(object):
     def _build_host_string(user, host):
         ret = host
         if user:
-            ret = '%s@' % user + ret
+            ret = str('%s@') % user + ret
         return ret
 
     @staticmethod

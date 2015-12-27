@@ -75,7 +75,7 @@ def main(argv=sys.argv, stdin=io2bytes(sys.stdin), stdout=io2bytes(sys.stdout), 
             fh = stdin if path is None else io.open(path, 'rb', 0)
             try:
                 for line in iter(fh.readline, b''):
-                    stdout.write(setting.prefix + line + RESET)
+                    stdout.write(setting.prefix + line.rstrip(b'\n') + RESET + b'\n')
                     stdout.flush()
             finally:
                 if fh is not stdin:

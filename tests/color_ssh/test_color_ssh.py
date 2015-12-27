@@ -98,9 +98,10 @@ class TestSetting(TestCase):
         ])
 
         # upload
-        self._check(self._parse([
+        result = self._parse([
             '-H', 'server-11 root@server-12', '--distribute', 'echo "foo bar"', '--upload', 'dir1/x', 'dir1/y', 'z'
-        ]), [
+        ])
+        self._check(result, [
             ('server-11', ['ssh', 'server-11', 'echo', 'foo bar', 'dir1/x', 'dir1/y'], [
                 ['ssh', 'server-11', 'mkdir', '-p', 'dir1'],
                 ['scp', 'dir1/x', 'server-11:dir1/x'],
@@ -109,6 +110,10 @@ class TestSetting(TestCase):
             ('server-12', ['ssh', 'root@server-12', 'echo', 'foo bar', 'z'],
              [['scp', 'z', 'root@server-12:z']]),
         ])
+        for _, cmd, setup in result.tasks:
+            self.assertTrue(all(isinstance(c, str) for c in cmd))
+            for xs in setup:
+                self.assertTrue(all(isinstance(c, str) for c in xs))
 
     def test_parse_args_error(self):
         with self.withBytesOutput() as (out, err):
@@ -132,10 +137,10 @@ class TestMain(TestCase):
     def test_main_single_proc(self):
         # requires: POSIX environment, color-cat command
         def f(bs):
-            return b'\x1b[7m\x1b[35mtests/resources/test_color_ssh_01.sh\x1b[0m|\x1b[0m\x1b[35m' + bs + b'\n\x1b[0m'
+            return b'\x1b[7m\x1b[35mtests/resources/test_color_ssh_01.sh\x1b[0m|\x1b[0m\x1b[35m' + bs + b'\x1b[0m\n'
 
         def g(bs):
-            return b'\x1b[7m\x1b[35mtests/resources/test_color_ssh_01.sh\x1b[0m+\x1b[0m\x1b[35m' + bs + b'\n\x1b[0m'
+            return b'\x1b[7m\x1b[35mtests/resources/test_color_ssh_01.sh\x1b[0m+\x1b[0m\x1b[35m' + bs + b'\x1b[0m\n'
 
         with self.__with_temp_output() as (out, err):
             args = ['color-ssh', '--ssh', str('bash'),
@@ -152,10 +157,10 @@ class TestMain(TestCase):
     def test_main_multi_proc(self):
         # requires: POSIX environment, color-cat command
         def f(bs):
-            return b'\x1b[7m\x1b[35mtests/resources/test_color_ssh_01.sh\x1b[0m|\x1b[0m\x1b[35m' + bs + b'\n\x1b[0m'
+            return b'\x1b[7m\x1b[35mtests/resources/test_color_ssh_01.sh\x1b[0m|\x1b[0m\x1b[35m' + bs + b'\x1b[0m\n'
 
         def g(bs):
-            return b'\x1b[7m\x1b[35mtests/resources/test_color_ssh_01.sh\x1b[0m+\x1b[0m\x1b[35m' + bs + b'\n\x1b[0m'
+            return b'\x1b[7m\x1b[35mtests/resources/test_color_ssh_01.sh\x1b[0m+\x1b[0m\x1b[35m' + bs + b'\x1b[0m\n'
 
         with self.__with_temp_output() as (out, err):
             path = os.path.join('tests', 'resources', 'test_color_ssh_01.sh')

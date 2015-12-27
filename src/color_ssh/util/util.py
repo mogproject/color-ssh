@@ -2,6 +2,7 @@ from __future__ import division, print_function, absolute_import, unicode_litera
 
 import sys
 import os
+import errno
 
 __all__ = ['PY3', 'arg2bytes', 'io2bytes', 'distribute', 'exception_handler']
 
@@ -52,6 +53,12 @@ def exception_handler(exception_func):
                 return func(*args, **kwargs)
             except KeyboardInterrupt:
                 return 130
+            except IOError as e:
+                if e.errno == errno.EPIPE:
+                    return 0
+                else:
+                    exception_func(e)
+                    return 1
             except Exception as e:
                 exception_func(e)
                 return 1
