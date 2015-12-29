@@ -15,6 +15,10 @@ from color_ssh.util.util import PY3
 class TestSetting(TestCase):
     def _check(self, setting, tasks):
         self.assertEqual(setting.tasks, tasks)
+        for _, cmd, setup in setting.tasks:
+            self.assertTrue(all(isinstance(c, str) for c in cmd))
+            for xs in setup:
+                self.assertTrue(all(isinstance(c, str) for c in xs))
 
     def _parse(self, args):
         xs = []
@@ -98,22 +102,18 @@ class TestSetting(TestCase):
         ])
 
         # upload
-        result = self._parse([
-            '-H', 'server-11 root@server-12', '--distribute', 'echo "foo bar"', '--upload', 'dir1/x', 'dir1/y', 'z'
-        ])
-        self._check(result, [
-            ('server-11', ['ssh', 'server-11', 'echo', 'foo bar', 'dir1/x', 'dir1/y'], [
-                ['ssh', 'server-11', 'mkdir', '-p', 'dir1'],
-                ['scp', 'dir1/x', 'server-11:dir1/x'],
-                ['scp', 'dir1/y', 'server-11:dir1/y']
-            ]),
-            ('server-12', ['ssh', 'root@server-12', 'echo', 'foo bar', 'z'],
-             [['scp', 'z', 'root@server-12:z']]),
-        ])
-        for _, cmd, setup in result.tasks:
-            self.assertTrue(all(isinstance(c, str) for c in cmd))
-            for xs in setup:
-                self.assertTrue(all(isinstance(c, str) for c in xs))
+        self._check(
+            self._parse([
+                '-H', 'server-11 root@server-12', '--distribute', 'echo "foo bar"', '--upload', 'dir1/x', 'dir1/y', 'z'
+            ]), [
+                ('server-11', ['ssh', 'server-11', 'echo', 'foo bar', 'dir1/x', 'dir1/y'], [
+                    ['ssh', 'server-11', 'mkdir', '-p', 'dir1'],
+                    ['rsync', '-a', 'dir1/x', 'server-11:dir1/x'],
+                    ['rsync', '-a', 'dir1/y', 'server-11:dir1/y']
+                ]),
+                ('server-12', ['ssh', 'root@server-12', 'echo', 'foo bar', 'z'],
+                 [['rsync', '-a', 'z', 'root@server-12:z']]),
+            ])
 
     def test_parse_args_error(self):
         with self.withBytesOutput() as (out, err):
@@ -213,8 +213,8 @@ class TestMain(TestCase):
             err.seek(0)
 
             self.assertEqual(out.read(), b'')
-            self.assertEqual(b'RuntimeError: Failed to execute setup command: false\nlabel=lab, command=echo x\n',
-                             err.read())
+            self.assertTrue(
+                b'RuntimeError: Failed to execute setup command: false\nlabel=lab, command=echo x\n' in err.read())
 
     @staticmethod
     @contextmanager

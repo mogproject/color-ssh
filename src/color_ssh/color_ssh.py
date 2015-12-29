@@ -94,7 +94,7 @@ class Setting(object):
                             )
 
                         # upload files before executing main commands
-                        setup_commands.extend([self._scp_args(str('scp'), user, host, port, arg) for arg in d[i]])
+                        setup_commands.extend([self._scp_args(str('rsync -a'), user, host, port, arg) for arg in d[i]])
 
                     label = option.label or host
                     ssh_args = self._ssh_args(option.ssh, user, host, port)
@@ -114,7 +114,7 @@ class Setting(object):
 
         with io.open(path) as f:
             lines = f.readlines()
-        return list(filter(lambda x: x, (line.strip() for line in lines)))
+        return list(filter(lambda x: str(x), (line.strip() for line in lines)))
 
     @staticmethod
     def _parse_host(s):
@@ -125,22 +125,23 @@ class Setting(object):
         ret = re.match('^(?:([^:@]+)@)?([^:@]+)(?::(\d+))?$', s)
         if not ret:
             raise ValueError('Illegal format: %s' % s)
-        return ret.groups()
+        return [None if s is None else str(s) for s in ret.groups()]
 
     @staticmethod
     def _build_host_string(user, host):
         ret = host
         if user:
-            ret = str('%s@') % user + ret
-        return ret
+            ret = ('%s@' % user) + ret
+        return str(ret)
 
     @staticmethod
     def _ssh_args(ssh_cmd, user, host, port):
-        return shlex.split(ssh_cmd) + ([] if port is None else ['-p', port]) + [Setting._build_host_string(user, host)]
+        return shlex.split(ssh_cmd) + (
+            [] if port is None else [str('-p'), port]) + [Setting._build_host_string(user, host)]
 
     @staticmethod
     def _scp_args(scp_cmd, user, host, port, path):
-        return shlex.split(scp_cmd) + ([] if port is None else ['-P', port]) + [
+        return shlex.split(scp_cmd) + ([] if port is None else [str('-P'), port]) + [
             path,
             Setting._build_host_string(user, host) + str(':') + path
         ]
