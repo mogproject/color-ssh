@@ -115,6 +115,35 @@ class TestSetting(TestCase):
                  [['rsync', '-a', 'z', 'root@server-12:z']]),
             ])
 
+        # upload-with
+        self._check(self._parse(['--upload-with=dir1/x', 'server-1', 'pwd']),
+                    [('server-1', ['ssh', 'server-1', 'pwd'], [
+                        ['ssh', 'server-1', 'mkdir', '-p', 'dir1'],
+                        ['rsync', '-a', 'dir1/x', 'server-1:dir1/x'],
+                    ])])
+
+        self._check(
+            self._parse([
+                '--upload-with', 'dir2/c dir2/d dir3/e',
+                '-H', 'server-11 root@server-12', '--distribute', 'echo "foo bar"', '--upload', 'dir1/x', 'dir1/y', 'z'
+            ]), [
+                ('server-11', ['ssh', 'server-11', 'echo', 'foo bar', 'dir1/x', 'dir1/y'], [
+                    ['ssh', 'server-11', 'mkdir', '-p', 'dir1', 'dir2', 'dir3'],
+                    ['rsync', '-a', 'dir2/c', 'server-11:dir2/c'],
+                    ['rsync', '-a', 'dir2/d', 'server-11:dir2/d'],
+                    ['rsync', '-a', 'dir3/e', 'server-11:dir3/e'],
+                    ['rsync', '-a', 'dir1/x', 'server-11:dir1/x'],
+                    ['rsync', '-a', 'dir1/y', 'server-11:dir1/y']
+                ]),
+                ('server-12', ['ssh', 'root@server-12', 'echo', 'foo bar', 'z'], [
+                    ['ssh', 'root@server-12', 'mkdir', '-p', 'dir2', 'dir3'],
+                    ['rsync', '-a', 'dir2/c', 'root@server-12:dir2/c'],
+                    ['rsync', '-a', 'dir2/d', 'root@server-12:dir2/d'],
+                    ['rsync', '-a', 'dir3/e', 'root@server-12:dir3/e'],
+                    ['rsync', '-a', 'z', 'root@server-12:z']
+                ]),
+            ])
+
     def test_parse_args_error(self):
         with self.withBytesOutput() as (out, err):
             self.assertSystemExit(2, Setting().parse_args, ['color-ssh'], out)

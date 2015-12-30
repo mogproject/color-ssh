@@ -21,6 +21,9 @@ class Setting(object):
         '       %prog [options...] -H "[user@]hostname [[user@]hostname]...]" command'
     ])
     DEFAULT_PARALLELISM = 32
+    CMD_SSH = str('ssh')
+    CMD_UPLOAD = [str('rsync'), str('-a')]
+    CMD_MKDIR = [str('mkdir'), str('-p')]
 
     def __init__(self, parallelism=None, tasks=None):
         self.parallelism = parallelism
@@ -39,7 +42,7 @@ class Setting(object):
             help='label name'
         )
         parser.add_option(
-            '--ssh', dest='ssh', default=str('ssh'), type='string', metavar='SSH',
+            '--ssh', dest='ssh', default=self.CMD_SSH, type='string', metavar='SSH',
             help='override ssh command line string'
         )
         parser.add_option(
@@ -62,11 +65,16 @@ class Setting(object):
             '--upload', dest='upload', default=False, action='store_true',
             help='upload files before executing a command (all args are regarded as paths)'
         )
+        parser.add_option(
+            '--upload-with', dest='upload_with', default=None, type='string', metavar='PATH',
+            help='file paths to be uploaded before executing a command'
+        )
 
         option, args = parser.parse_args(argv[1:])
         hosts = self._load_hosts(option.host_file) + (option.host_string.split() if option.host_string else [])
 
         if len(args) < (1 if hosts else 2):
+            print(option.__dict__)
             stdout.write(arg2bytes(parser.format_help().encode('utf-8')))
             parser.exit(2)
 
@@ -77,6 +85,9 @@ class Setting(object):
         # parse hosts
         parsed_hosts = [self._parse_host(h) for h in hosts]
 
+        # parse upload-with option
+        upload_with = [] if option.upload_with is None else shlex.split(option.upload_with)
+
         tasks = []
         if option.distribute:
             # distribute args
@@ -84,24 +95,16 @@ class Setting(object):
             d = distribute(len(hosts), args)
             for i, (user, host, port) in enumerate(parsed_hosts):
                 if d[i]:
-                    setup_commands = []
-                    if option.upload:
-                        # create directories
-                        dirs = list(set(x for x in [os.path.dirname(arg) for arg in d[i]] if x != '' and x != '.'))
-                        if dirs:
-                            setup_commands.append(
-                                self._ssh_args(option.ssh, user, host, port) + [str('mkdir'), str('-p')] + dirs
-                            )
-
-                        # upload files before executing main commands
-                        setup_commands.extend([self._scp_args(str('rsync -a'), user, host, port, arg) for arg in d[i]])
-
+                    upload_paths = upload_with + d[i] if option.upload else []
                     label = option.label or host
                     ssh_args = self._ssh_args(option.ssh, user, host, port)
-                    tasks.append((label, ssh_args + dist_prefix + d[i], setup_commands))
+                    tasks.append((label, ssh_args + dist_prefix + d[i],
+                                  self._build_upload_commands(user, host, port, option.ssh, upload_paths)))
         else:
             for user, host, port in parsed_hosts:
-                tasks.append((option.label or host, self._ssh_args(option.ssh, user, host, port) + args, []))
+                tasks.append((option.label or host,
+                              self._ssh_args(option.ssh, user, host, port) + args,
+                              self._build_upload_commands(user, host, port, option.ssh, upload_with)))
 
         self.parallelism = option.parallelism
         self.tasks = tasks
@@ -140,11 +143,24 @@ class Setting(object):
             [] if port is None else [str('-p'), port]) + [Setting._build_host_string(user, host)]
 
     @staticmethod
-    def _scp_args(scp_cmd, user, host, port, path):
-        return shlex.split(scp_cmd) + ([] if port is None else [str('-P'), port]) + [
+    def _upload_args(user, host, port, path):
+        return Setting.CMD_UPLOAD + ([] if port is None else [str('-P'), port]) + [
             path,
             Setting._build_host_string(user, host) + str(':') + path
         ]
+
+    @staticmethod
+    def _build_upload_commands(user, host, port, ssh_cmd, paths):
+        # create directories
+        dirs = list(set(x for x in [os.path.dirname(path) for path in paths] if x != '' and x != '.'))
+
+        ret = []
+        if dirs:
+            ret.append(Setting._ssh_args(ssh_cmd, user, host, port) + Setting.CMD_MKDIR + sorted(dirs))
+
+        # upload files
+        ret.extend([Setting._upload_args(user, host, port, path) for path in paths])
+        return ret
 
 
 def run_task(args):
