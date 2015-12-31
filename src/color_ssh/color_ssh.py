@@ -18,7 +18,7 @@ class Setting(object):
     USAGE = '\n'.join([
         '%prog [options...] [user@]hostname command',
         '       %prog [options...] -h host_file command',
-        '       %prog [options...] -H "[user@]hostname [[user@]hostname]...]" command'
+        '       %prog [options...] -H "[user@]hostname[:port] [[user@]hostname[:port]...]" command'
     ])
     DEFAULT_PARALLELISM = 32
     CMD_SSH = str('ssh')
@@ -47,11 +47,11 @@ class Setting(object):
         )
         parser.add_option(
             '-h', '--hosts', dest='host_file', default=None, type='string', metavar='HOST_FILE',
-            help='hosts file (each line "[user@]host")'
+            help='hosts file (each line "[user@]host[:port]")'
         )
         parser.add_option(
             '-H', '--host', dest='host_string', default=None, type='string', metavar='HOST_STRING',
-            help='additional host entries ("[user@]host")'
+            help='additional host entries ("[user@]host[:port]")'
         )
         parser.add_option(
             '-p', '--par', dest='parallelism', default=self.DEFAULT_PARALLELISM, type='int', metavar='PAR',
