@@ -28,7 +28,10 @@ Runs remote commands, colorfully.
 Features
 --------
 
-* todo
+Two commands will be installed.
+
+* ``color-cat``: Similar to Linux's ``cat`` command, but the only difference is that the output is colored.
+* ``color-ssh``: Execute remote commands via ``ssh`` with colored output. You can do parallel optionally.
 
 ------------
 Dependencies
@@ -51,29 +54,58 @@ Installation
 +-------------------------+---------------------------------------+
 | Uninstall               |``pip uninstall color-ssh``            |
 +-------------------------+---------------------------------------+
-| Check installed version |``color-ssh --version``                |
+| Check installed version | | ``color-cat --version``             |
+|                         | | ``color-ssh --version``             |
 +-------------------------+---------------------------------------+
-| Help                    |``color-ssh -h``                       |
+| Help                    | | ``color-cat --help``                |
+|                         | | ``color-ssh --help``                |
 +-------------------------+---------------------------------------+
 
 ----------
 Quickstart
 ----------
 
-Two commands will be installed.
-
 * color-cat
 
 ::
 
-    echo abc | color-cat -l label
-    echo abc | color-cat -l label -c magenta
-    color-cat -l label README.rst
+    echo abc | color-cat -l label             # print colored label and output
+    echo abc | color-cat -l label -c magenta  # specify color
+    echo abc | color-cat -l label -s '=>'     # specify separator
+    color-cat -l label README.rst             # print the content of the file
 
 * color-ssh
 
+Basic usage
+
 ::
 
-    color-ssh server-1 ls -l
+    color-ssh server-1 ls -l                       # run command in server-1 with colored output
     color-ssh server-1 'cd /tmp && pwd'
-    color-ssh --ssh 'ssh -v' username@server-1 id
+    color-ssh --ssh 'ssh -v' username@server-1 id  # overwrite ssh command to "ssh -v"
+
+Parallel command executing
+
+::
+
+    color-ssh -h ~/hosts ls -l              # load host list from file (each line "[user@]host[:port]")
+    color-ssh -H 'server-1 server-2' ls -l  # specify server list within the command line
+    color-ssh -h ~/hosts -p 4 ls -l         # specify parallelism
+
+Uploading files and distributing command-line arguments
+
+::
+
+    color-ssh -h ~/hosts --upload-with /path/to/xxx do-something /path/to/xxx     # upload file before executing command
+    color-ssh -h ~/hosts --upload-with '/path/to/xxx /path/to/yyy' do-something   # upload two files
+    color-ssh -h ~/hosts --distribute do-something a b c d e
+      # distirubute arguments to each server
+      # e.g.
+      # server-1: do-something a b c
+      # server-2: do-something d e
+    color-ssh -h ~/hosts --upload --distribute do-something /path/to/xxx /path/to/yyy
+      # upload files before executing command
+      # e.g.
+      # server-1: do-something /path/to/xxx (uploading /path/to/xxx)
+      # server-2: do-something /path/to/yyy (uploading /path/to/yyy)
+
