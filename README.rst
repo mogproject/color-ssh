@@ -31,7 +31,12 @@ Features
 Two commands will be installed.
 
 * ``color-cat``: Similar to Linux's ``cat`` command, but the only difference is that the output is colored.
+
+  * The color is determined by the label string, therefore same label makes the output to be same color.
+
 * ``color-ssh``: Execute remote commands via ``ssh`` with colored output. You can do parallel optionally.
+
+.. image:: https://raw.githubusercontent.com/wiki/mogproject/color-ssh/files/demo.gif
 
 ------------
 Dependencies
@@ -65,7 +70,8 @@ Installation
 Quickstart
 ----------
 
-* color-cat
+color-cat
+---------
 
 ::
 
@@ -74,9 +80,10 @@ Quickstart
     echo abc | color-cat -l label -s '=>'     # specify separator
     color-cat -l label README.rst             # print the content of the file
 
-* color-ssh
+color-ssh
+---------
 
-Basic usage
+* Basic usage
 
 ::
 
@@ -84,7 +91,7 @@ Basic usage
     color-ssh server-1 'cd /tmp && pwd'
     color-ssh --ssh 'ssh -v' username@server-1 id  # overwrite ssh command to "ssh -v"
 
-Parallel command executing
+* Parallel command executing
 
 ::
 
@@ -92,7 +99,7 @@ Parallel command executing
     color-ssh -H 'server-1 server-2' ls -l  # specify server list within the command line
     color-ssh -h ~/hosts -p 4 ls -l         # specify parallelism
 
-Uploading files and distributing command-line arguments
+* Uploading files and distributing command-line arguments
 
 ::
 
